@@ -43,7 +43,8 @@ import com.jamie.pokedexhiltversion.models.PokedexListEntry
 
 @Composable
 fun PokemonListScreen(
-    navController: NavController
+    navController: NavController,
+    viewModel: PokemonListViewModel = hiltViewModel()
 ) {
     Surface(
         color = MaterialTheme.colorScheme.background,
@@ -63,7 +64,9 @@ fun PokemonListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-            ) {}
+            ) {
+                viewModel.searchPokemonList(it)
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -96,17 +99,20 @@ fun SearchBar(
                 .shadow(5.dp, CircleShape)
                 .background(Color.White, CircleShape)
                 .padding(horizontal = 20.dp, vertical = 12.dp)
-                .onFocusChanged { isHintDisplayed = !it.isFocused }
+                .onFocusChanged { isHintDisplayed = it.isFocused.not() && text.isEmpty() }
         )
+
         if (isHintDisplayed) {
             Text(
                 text = hint,
                 color = Color.LightGray,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             )
         }
     }
 }
+
 
 @Composable
 fun PokemonList(
@@ -118,17 +124,19 @@ fun PokemonList(
     val loadError by remember { viewModel.loadError }
     val isLoading by remember { viewModel.isLoading }
 
+    val isSearching by remember { viewModel.isSearching }
+
     LazyColumn(
         contentPadding = PaddingValues(16.dp)
     ) {
         val itemCount =
             if (pokemonList.size % 2 == 0) pokemonList.size / 2 else pokemonList.size / 2 + 1
 
-        items(itemCount) { index ->
-            if (index >= itemCount - 1 && !endReached) {
+        items(itemCount) {
+            if (it >= itemCount - 1 && !endReached && !isLoading && !isSearching) {
                 viewModel.loadPokemonPaginated()
             }
-            PokedexRow(rowIndex = index, entries = pokemonList, navController = navController)
+            PokedexRow(rowIndex = it, entries = pokemonList, navController = navController)
         }
     }
 
