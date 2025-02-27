@@ -215,7 +215,7 @@ fun PokemonDetailSection(
     pokemonInfo: Pokemon,
     modifier: Modifier = Modifier
 ) {
-    val scrollState = rememberScrollState()
+    var scrollState = rememberScrollState()
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
