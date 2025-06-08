@@ -2,9 +2,12 @@ package com.jamie.pokedexhiltversion.data.remote
 
 import com.jamie.pokedexhiltversion.data.remote.responses.Pokemon
 import com.jamie.pokedexhiltversion.data.remote.responses.PokemonList
+import com.jamie.pokedexhiltversion.data.remote.responses.evolution.EvolutionChain
+import com.jamie.pokedexhiltversion.data.remote.responses.evolution.PokemonSpecies
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Url
 
 interface PokeApi {
     @GET("pokemon")
@@ -17,4 +20,14 @@ interface PokeApi {
     suspend fun getPokemonInfo(
         @Path("name") name: String
     ) : Pokemon
+
+    @GET("pokemon-species/{name}")
+    suspend fun getPokemonSpecies(
+        @Path("name") name: String
+    ): PokemonSpecies
+
+    @GET
+    suspend fun getEvolutionChain(
+        @Url url: String
+    ): EvolutionChain
 }
