@@ -3,6 +3,11 @@ package com.jamie.pokedexhiltversion
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavType
@@ -40,7 +45,20 @@ class MainActivity : ComponentActivity() {
                             navArgument("pokemonName") {
                                 type = NavType.StringType
                             }
-                        )
+                        ),
+                        // Define animations for this screen
+                        enterTransition = {
+                            slideInHorizontally(
+                                initialOffsetX = { it },
+                                animationSpec = tween(durationMillis = 300)
+                            ) + fadeIn()
+                        },
+                        popExitTransition = {
+                            slideOutHorizontally(
+                                targetOffsetX = { it },
+                                animationSpec = tween(durationMillis = 300)
+                            ) + fadeOut()
+                        }
                     ) {
                         val dominantColor = remember {
                             val color = it.arguments?.getInt("dominantColor")
@@ -54,7 +72,6 @@ class MainActivity : ComponentActivity() {
                             pokemonName = pokemonName?.lowercase(Locale.ROOT) ?: "",
                             navController = navController
                         )
-                        // TODO: Implement your Pokemon detail screen using dominantColor and pokemonName
                     }
                 }
             }

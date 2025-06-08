@@ -5,25 +5,24 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.jamie.pokedexhiltversion.data.local.models.PokemonListEntity
 import com.jamie.pokedexhiltversion.data.local.models.RemoteKeys
+import com.jamie.pokedexhiltversion.data.remote.responses.Pokemon
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PokemonDao {
 
-    // For Pokemon List
+    @RawQuery(observedEntities = [PokemonListEntity::class])
+    fun getFilteredPokemonList(query: SupportSQLiteQuery): PagingSource<Int, PokemonListEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPokemonList(pokemonList: List<PokemonListEntity>)
 
-    @Query("SELECT * FROM pokemon_list ORDER BY number ASC")
-    fun getPokemonList(): PagingSource<Int, PokemonListEntity>
-
     @Query("SELECT * FROM pokemon_list WHERE isFavorite = 1 ORDER BY number ASC")
     fun getFavoritePokemonList(): PagingSource<Int, PokemonListEntity>
-
-    @Query("SELECT * FROM pokemon_list WHERE pokemonName LIKE :query ORDER BY number ASC")
-    fun searchPokemonList(query: String): PagingSource<Int, PokemonListEntity>
 
     @Query("DELETE FROM pokemon_list")
     suspend fun clearPokemonList()
@@ -31,11 +30,12 @@ interface PokemonDao {
     @Query("SELECT * FROM pokemon_list WHERE pokemonName = :pokemonName")
     fun getPokemon(pokemonName: String): Flow<PokemonListEntity?>
 
+    @Query("UPDATE pokemon_list SET pokemonInfo = :pokemonInfo WHERE pokemonName = :pokemonName")
+    suspend fun updatePokemonInfo(pokemonName: String, pokemonInfo: Pokemon)
+
     @Query("UPDATE pokemon_list SET isFavorite = :isFavorite WHERE pokemonName = :pokemonName")
     suspend fun setFavorite(pokemonName: String, isFavorite: Boolean)
 
-
-    // For Remote Keys
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllRemoteKeys(remoteKey: List<RemoteKeys>)
 

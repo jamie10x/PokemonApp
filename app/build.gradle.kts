@@ -29,7 +29,6 @@ android {
         }
     }
     compileOptions {
-        // Sticking with 1.8 as it's the most stable standard
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -116,4 +115,5 @@ dependencies {
     // Paging 3
     implementation("androidx.paging:paging-runtime-ktx:3.3.6")
     implementation("androidx.paging:paging-compose:3.3.6")
+    implementation("com.valentinilk.shimmer:compose-shimmer:1.2.0")
 }

@@ -9,6 +9,7 @@ import com.jamie.pokedexhiltversion.data.local.PokedexDatabase
 import com.jamie.pokedexhiltversion.data.local.models.PokemonListEntity
 import com.jamie.pokedexhiltversion.data.local.models.RemoteKeys
 import com.jamie.pokedexhiltversion.data.remote.PokeApi
+import com.jamie.pokedexhiltversion.data.remote.responses.Pokemon
 import com.jamie.pokedexhiltversion.util.Constants.PAGE_SIZE
 import kotlinx.coroutines.flow.firstOrNull
 import retrofit2.HttpException
@@ -30,19 +31,21 @@ class PokemonRemoteMediator(
         return try {
             val currentPage = when (loadType) {
                 LoadType.REFRESH -> 0
-                LoadType.PREPEND -> {
-                    return MediatorResult.Success(endOfPaginationReached = true)
-                }
+                LoadType.PREPEND -> return MediatorResult.Success(endOfPaginationReached = true)
                 LoadType.APPEND -> {
                     val remoteKeys = getRemoteKeyForLastItem(state)
-                    val nextKey = remoteKeys?.nextKey
+                    remoteKeys?.nextKey
                         ?: return MediatorResult.Success(endOfPaginationReached = remoteKeys != null)
-                    nextKey
                 }
             }
 
-            val response = pokeApi.getPokemonList(PAGE_SIZE, currentPage * PAGE_SIZE)
-            val endOfPaginationReached = response.results.isEmpty()
+            val listResponse = pokeApi.getPokemonList(PAGE_SIZE, currentPage * PAGE_SIZE)
+            val endOfPaginationReached = listResponse.results.isEmpty()
+
+            // Fetch full details for each Pokémon in the list
+            val pokemonDetails = listResponse.results.map {
+                pokeApi.getPokemonInfo(it.name)
+            }
 
             val prevKey = if (currentPage == 0) null else currentPage - 1
             val nextKey = if (endOfPaginationReached) null else currentPage + 1
@@ -53,34 +56,28 @@ class PokemonRemoteMediator(
                     pokemonDao.clearRemoteKeys()
                 }
 
-                val pokemonEntries = response.results.map { entry ->
-                    val pokemonName = entry.name.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
-                    }
-                    val number = if (entry.url.endsWith("/")) {
-                        entry.url.dropLast(1).takeLastWhile { it.isDigit() }
-                    } else {
-                        entry.url.takeLastWhile { it.isDigit() }
-                    }
-                    val url = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${number}.png"
-
-                    // Preserve favorite status
+                val pokemonEntities = pokemonDetails.map { detail ->
+                    val pokemonName = detail.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
                     val existingPokemon = pokemonDao.getPokemon(pokemonName).firstOrNull()
-                    val isFavorite = existingPokemon?.isFavorite == true
-
                     PokemonListEntity(
                         pokemonName = pokemonName,
-                        imageUrl = url,
-                        number = number.toInt(),
-                        isFavorite = isFavorite
+                        imageUrl = detail.sprites.front_default,
+                        number = detail.id,
+                        isFavorite = existingPokemon?.isFavorite == true,
+                        pokemonInfo = detail,
+                        types = detail.types.map { it.type.name },
+                        hp = detail.stats.first { it.stat.name == "hp" }.base_stat,
+                        attack = detail.stats.first { it.stat.name == "attack" }.base_stat,
+                        defense = detail.stats.first { it.stat.name == "defense" }.base_stat,
+                        specialAttack = detail.stats.first { it.stat.name == "special-attack" }.base_stat,
+                        specialDefense = detail.stats.first { it.stat.name == "special-defense" }.base_stat,
+                        speed = detail.stats.first { it.stat.name == "speed" }.base_stat
                     )
                 }
-                pokemonDao.insertPokemonList(pokemonEntries)
+                pokemonDao.insertPokemonList(pokemonEntities)
 
-                val keys = response.results.map { entry ->
-                    val pokemonName = entry.name.replaceFirstChar {
-                        if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString()
-                    }
+                val keys = listResponse.results.map { entry ->
+                    val pokemonName = entry.name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
                     RemoteKeys(
                         pokemonName = pokemonName,
                         prevKey = prevKey,

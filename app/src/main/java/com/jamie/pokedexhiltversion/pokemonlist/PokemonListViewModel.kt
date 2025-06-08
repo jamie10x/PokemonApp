@@ -17,13 +17,13 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 
-enum class ListScreenState {
-    ALL, FAVORITES
+enum class SortType {
+    NUMBER, NAME, HP, ATTACK, DEFENSE
 }
 
 @OptIn(FlowPreview::class)
@@ -35,37 +35,40 @@ class PokemonListViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery
 
-    private val _listState = mutableStateOf(ListScreenState.ALL)
-    val listState: State<ListScreenState> = _listState
+    private val _sortType = MutableStateFlow(SortType.NUMBER)
+    val sortType: StateFlow<SortType> = _sortType
+
+    private val _selectedTypes = MutableStateFlow<List<String>>(emptyList())
+    val selectedTypes: StateFlow<List<String>> = _selectedTypes
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val pokemonList: Flow<PagingData<PokemonListEntity>> = _searchQuery
-        .debounce(500) // Debounce to avoid rapid firing of searches
-        .distinctUntilChanged()
-        .flatMapLatest { query ->
-            // Use listState.value here to react to changes
-            val source = when (listState.value) {
-                ListScreenState.ALL -> repository.getPokemonList()
-                ListScreenState.FAVORITES -> repository.getFavoritePokemonList()
-            }
+    val pokemonList: Flow<PagingData<PokemonListEntity>> = combine(
+        _searchQuery.debounce(500),
+        _sortType,
+        _selectedTypes
+    ) { query, sort, types ->
+        Triple(query, sort, types)
+    }.flatMapLatest { (query, sort, types) ->
+        repository.getPokemonList(query, sort, types)
+    }.cachedIn(viewModelScope)
 
-            if (query.isBlank()) {
-                source
-            } else {
-                // Search should apply to the currently selected list state, but for simplicity, we search all.
-                // A more advanced implementation might search within favorites only.
-                repository.searchPokemonList(query)
-            }
-        }
-        .cachedIn(viewModelScope) // Cache the results in the ViewModel scope
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
     }
 
-    fun setListState(newState: ListScreenState) {
-        _listState.value = newState
-        // When the state changes, if the query is blank, the flow will automatically re-trigger.
+    fun onSortTypeChanged(sortType: SortType) {
+        _sortType.value = sortType
+    }
+
+    fun onTypeSelected(type: String) {
+        val currentTypes = _selectedTypes.value.toMutableList()
+        if (currentTypes.contains(type)) {
+            currentTypes.remove(type)
+        } else {
+            currentTypes.add(type)
+        }
+        _selectedTypes.value = currentTypes
     }
 
     fun calcDominantColor(bitmap: Bitmap, onFinish: (Color) -> Unit) {
