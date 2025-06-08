@@ -1,5 +1,6 @@
 package com.jamie.pokedexhiltversion.data.remote.responses
 
+
 data class Pokemon(
     val abilities: List<Ability>,
     val base_experience: Int,
@@ -16,7 +17,7 @@ data class Pokemon(
     val order: Int,
     val past_abilities: List<Any?>,
     val past_types: List<Any?>,
-    val species: Species,
+    val species: com.jamie.pokedexhiltversion.data.remote.responses.evolution.Species,
     val sprites: Sprites,
     val stats: List<Stat>,
     val types: List<Type>,
