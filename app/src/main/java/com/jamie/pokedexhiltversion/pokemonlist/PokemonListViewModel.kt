@@ -1,142 +1,80 @@
 package com.jamie.pokedexhiltversion.pokemonlist
 
 import android.graphics.Bitmap
+import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import androidx.palette.graphics.Palette
-import com.jamie.pokedexhiltversion.models.PokedexListEntry
+import com.jamie.pokedexhiltversion.data.local.models.PokemonListEntity
 import com.jamie.pokedexhiltversion.repository.PokemonRepository
-import com.jamie.pokedexhiltversion.util.Constants.PAGE_SIZE
-import com.jamie.pokedexhiltversion.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import java.util.Locale
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import javax.inject.Inject
 
+enum class ListScreenState {
+    ALL, FAVORITES
+}
+
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class PokemonListViewModel @Inject constructor(
     private val repository: PokemonRepository
 ) : ViewModel() {
 
-    private var currentPage = 0
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
 
-    var pokemonList = mutableStateOf<List<PokedexListEntry>>(listOf())
-    var loadError = mutableStateOf("")
-    var isLoading = mutableStateOf(false)
-    var endReached = mutableStateOf(false)
+    private val _listState = mutableStateOf(ListScreenState.ALL)
+    val listState: State<ListScreenState> = _listState
 
-    private var cachedPokemonList = listOf<PokedexListEntry>()
-    private var searchStarting = true
-    val isSearching = mutableStateOf(false)
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val pokemonList: Flow<PagingData<PokemonListEntity>> = _searchQuery
+        .debounce(500) // Debounce to avoid rapid firing of searches
+        .distinctUntilChanged()
+        .flatMapLatest { query ->
+            // Use listState.value here to react to changes
+            val source = when (listState.value) {
+                ListScreenState.ALL -> repository.getPokemonList()
+                ListScreenState.FAVORITES -> repository.getFavoritePokemonList()
+            }
 
+            if (query.isBlank()) {
+                source
+            } else {
+                // Search should apply to the currently selected list state, but for simplicity, we search all.
+                // A more advanced implementation might search within favorites only.
+                repository.searchPokemonList(query)
+            }
+        }
+        .cachedIn(viewModelScope) // Cache the results in the ViewModel scope
 
-    init {
-        loadPokemonPaginated()
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
     }
 
-    fun searchPokemonList(query: String) {
-        val listToSearch = if (searchStarting) {
-            pokemonList.value
-        } else {
-            cachedPokemonList
-        }
-        viewModelScope.launch(Dispatchers.Default) {
-            if (query.isEmpty()) {
-                pokemonList.value = cachedPokemonList
-                isSearching.value = false
-                searchStarting = true
-                return@launch
-            }
-            if (searchStarting) {
-                cachedPokemonList = pokemonList.value
-                searchStarting = false
-            }
-            val results = listToSearch.filter {
-                it.pokemonName.contains(query.trim(), ignoreCase = true) ||
-                        it.number.toString() == query.trim()
-            }
-            pokemonList.value = results
-            isSearching.value = true
-            }
-        }
+    fun setListState(newState: ListScreenState) {
+        _listState.value = newState
+        // When the state changes, if the query is blank, the flow will automatically re-trigger.
+    }
 
-        fun loadPokemonPaginated() {
-            viewModelScope.launch {
-                isLoading.value = true
-                val result = repository.getPokemonList(PAGE_SIZE, currentPage * PAGE_SIZE)
-                when (result) {
-                    is Resource.Success -> {
-                        endReached.value = currentPage * PAGE_SIZE >= result.data!!.count
-                        val pokedexEntries = result.data.results.mapIndexed { index, entry ->
-                            val number = if (entry.url.endsWith("/")) {
-                                entry.url.dropLast(1).takeLastWhile { it.isDigit() }
-                            } else {
-                                entry.url.takeLastWhile { it.isDigit() }
-                            }
-                            val url =
-                                "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${number}.png"
-                            PokedexListEntry(
-                                entry.name.replaceFirstChar {
-                                    if (it.isLowerCase()) it.titlecase(
-                                        Locale.ROOT
-                                    ) else it.toString()
-                                },
-                                url,
-                                number.toInt()
-                            )
-                        }
-                        currentPage++
+    fun calcDominantColor(bitmap: Bitmap, onFinish: (Color) -> Unit) {
+        val bmpCopy = bitmap.copy(Bitmap.Config.ARGB_8888, true)
 
-                        loadError.value = ""
-                        isLoading.value = false
-
-                        pokemonList.value = pokemonList.value + pokedexEntries
-                    }
-
-                    is Resource.Error -> {
-                        loadError.value = result.message!!
-                        isLoading.value = false
-                    }
-                    else -> {}
-                }
-            }
-        }
-
-
-        fun calcDominantColor(bitmap: Bitmap, onFinish: (Color) -> Unit) {
-            val bmpCopy = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-
-            Palette.from(bmpCopy).generate { palette ->
-                palette?.dominantSwatch?.rgb?.let { colorValue ->
-                    onFinish(Color(colorValue))
-                }
-            }
-        }
-
-        /* Alternative approach
-        fun calcDominantColor(drawable: Drawable, onFinish: (Color) -> Unit) {
-        val bitmap = when (drawable) {
-            is BitmapDrawable -> drawable.bitmap.copy(Bitmap.Config.ARGB_8888, true)
-            else -> {
-                val bmp = Bitmap.createBitmap(
-                    drawable.intrinsicWidth, drawable.intrinsicHeight, Bitmap.Config.ARGB_8888
-                )
-                val canvas = Canvas(bmp)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-                bmp
-            }
-        }
-
-        Palette.from(bitmap).generate { palette ->
+        Palette.from(bmpCopy).generate { palette ->
             palette?.dominantSwatch?.rgb?.let { colorValue ->
                 onFinish(Color(colorValue))
             }
         }
     }
-
-         */
-    }
+}
