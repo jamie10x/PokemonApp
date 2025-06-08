@@ -33,12 +33,10 @@ class PokemonDetailViewModel @Inject constructor(
         val formattedName = pokemonName.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
 
         viewModelScope.launch {
-            // Collect the Flow from the repository
             repository.getPokemonInfo(formattedName).collect { result ->
                 pokemonInfo.value = result
-                // When we get a successful result (either from cache or network), load the evolution chain
-                if (result is Resource.Success || (result is Resource.Loading && result.data != null)) {
-                    loadEvolutionChain(result.data!!.name)
+                if (result.data != null) {
+                    loadEvolutionChain(result.data.name)
                 }
             }
         }
@@ -81,6 +79,10 @@ class PokemonDetailViewModel @Inject constructor(
                                 evolutionChain.value = Resource.Error(chainResult.message ?: "Failed to load evolution chain.")
                             }
                             is Resource.Loading -> { }
+                            // THE FIX: Handle null case
+                            null -> {
+                                evolutionChain.value = Resource.Error("Failed to load evolution chain.")
+                            }
                         }
                     } else {
                         evolutionChain.value = Resource.Error("No evolution chain URL found.")
@@ -90,6 +92,10 @@ class PokemonDetailViewModel @Inject constructor(
                     evolutionChain.value = Resource.Error(speciesResult.message ?: "Failed to load species.")
                 }
                 is Resource.Loading -> { }
+                // THE FIX: Handle null case
+                null -> {
+                    evolutionChain.value = Resource.Error("Failed to load species.")
+                }
             }
         }
     }

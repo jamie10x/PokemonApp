@@ -18,6 +18,8 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.jamie.pokedexhiltversion.HiltTestRunner"
+
     }
 
     buildTypes {
@@ -50,7 +52,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -116,4 +117,27 @@ dependencies {
     implementation("androidx.paging:paging-runtime-ktx:3.3.6")
     implementation("androidx.paging:paging-compose:3.3.6")
     implementation("com.valentinilk.shimmer:compose-shimmer:1.2.0")
+
+    testImplementation(libs.junit)
+
+    // Truth for fluent assertions
+    testImplementation("com.google.truth:truth:1.4.2")
+
+    // Mockito for mocking objects
+    testImplementation("org.mockito:mockito-core:5.12.0")
+    testImplementation("org.mockito:mockito-inline:5.2.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+
+    // Coroutines testing
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+
+    // For testing LiveData and ViewModel
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.56.2")
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.56.1")
+
+    // For asserting on navigation
+    androidTestImplementation("androidx.navigation:navigation-testing:2.9.0")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+
 }
