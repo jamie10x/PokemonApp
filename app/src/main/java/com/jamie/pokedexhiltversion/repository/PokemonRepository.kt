@@ -6,11 +6,13 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.jamie.pokedexhiltversion.data.local.PokedexDatabase
+import com.jamie.pokedexhiltversion.data.local.models.MoveEntity
 import com.jamie.pokedexhiltversion.data.local.models.PokemonListEntity
 import com.jamie.pokedexhiltversion.data.remote.PokeApi
 import com.jamie.pokedexhiltversion.data.remote.responses.Pokemon
 import com.jamie.pokedexhiltversion.data.remote.responses.evolution.EvolutionChain
 import com.jamie.pokedexhiltversion.data.remote.responses.evolution.PokemonSpecies
+import com.jamie.pokedexhiltversion.data.remote.responses.move.MoveDetail
 import com.jamie.pokedexhiltversion.paging.PokemonRemoteMediator
 import com.jamie.pokedexhiltversion.pokemonlist.SortType
 import com.jamie.pokedexhiltversion.util.Constants.PAGE_SIZE
@@ -38,7 +40,7 @@ class PokemonRepository @Inject constructor(
             remoteMediator = if (searchQuery.isBlank() && selectedTypes.isEmpty()) {
                 PokemonRemoteMediator(pokeApi = api, pokedexDatabase = db)
             } else {
-                null // Disable remote mediator when filtering/searching
+                null
             },
             pagingSourceFactory = { pokemonDao.getFilteredPokemonList(query) }
         ).flow
@@ -50,15 +52,11 @@ class PokemonRepository @Inject constructor(
         selectedTypes: List<String>
     ): SimpleSQLiteQuery {
         val sb = StringBuilder("SELECT * FROM pokemon_list WHERE ")
-
-        // Search query part
         if (searchQuery.isNotBlank()) {
             sb.append("(pokemonName LIKE ?)")
         } else {
-            sb.append("1=1") // Always true if no search query
+            sb.append("1=1")
         }
-
-        // Type filtering part
         if (selectedTypes.isNotEmpty()) {
             sb.append(" AND (")
             selectedTypes.forEachIndexed { index, type ->
@@ -69,8 +67,6 @@ class PokemonRepository @Inject constructor(
             }
             sb.append(")")
         }
-
-        // Sorting part
         sb.append(" ORDER BY ")
         sb.append(
             when (sortType) {
@@ -81,7 +77,6 @@ class PokemonRepository @Inject constructor(
                 SortType.DEFENSE -> "defense DESC"
             }
         )
-
         val args = mutableListOf<Any>()
         if (searchQuery.isNotBlank()) {
             args.add("%$searchQuery%")
@@ -91,12 +86,10 @@ class PokemonRepository @Inject constructor(
                 args.add("%$type%")
             }
         }
-
         return SimpleSQLiteQuery(sb.toString(), args.toTypedArray())
     }
 
-
-    fun getPokemonInfo(pokemonName: String): Flow<Resource<Pokemon>> {
+    suspend fun getPokemonInfo(pokemonName: String): Flow<Resource<Pokemon>> {
         return object : Flow<Resource<Pokemon>> {
             override suspend fun collect(collector: kotlinx.coroutines.flow.FlowCollector<Resource<Pokemon>>) {
                 val cachedData = pokemonDao.getPokemon(pokemonName).first()?.pokemonInfo
@@ -141,5 +134,37 @@ class PokemonRepository @Inject constructor(
             return Resource.Error("An unknown error occurred.")
         }
         return Resource.Success(response)
+    }
+
+    // --- New Moves Functions ---
+
+    fun getMoveList(): Flow<PagingData<MoveEntity>> {
+        return Pager(
+            config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
+            pagingSourceFactory = { pokemonDao.getMoveList() }
+        ).flow
+    }
+
+    suspend fun syncMoveList() {
+        try {
+            // A simple sync: fetch all moves and store them.
+            // Note: PokeAPI has over 900 moves, so we set a high limit.
+            val response = api.getMoveList(limit = 1000, offset = 0)
+            val moveEntities = response.results.map {
+                MoveEntity(name = it.name, url = it.url)
+            }
+            pokemonDao.insertMoveList(moveEntities)
+        } catch (e: Exception) {
+            // Handle error, maybe log it
+        }
+    }
+
+    suspend fun getMoveInfo(moveName: String): Resource<MoveDetail> {
+        return try {
+            val response = api.getMoveInfo(moveName)
+            Resource.Success(response)
+        } catch (e: Exception) {
+            Resource.Error("An unknown error occurred.")
+        }
     }
 }

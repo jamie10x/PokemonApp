@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.sqlite.db.SupportSQLiteQuery
+import com.jamie.pokedexhiltversion.data.local.models.MoveEntity
 import com.jamie.pokedexhiltversion.data.local.models.PokemonListEntity
 import com.jamie.pokedexhiltversion.data.local.models.RemoteKeys
 import com.jamie.pokedexhiltversion.data.remote.responses.Pokemon
@@ -15,14 +16,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PokemonDao {
 
+    // For Pokemon List
     @RawQuery(observedEntities = [PokemonListEntity::class])
     fun getFilteredPokemonList(query: SupportSQLiteQuery): PagingSource<Int, PokemonListEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPokemonList(pokemonList: List<PokemonListEntity>)
-
-    @Query("SELECT * FROM pokemon_list WHERE isFavorite = 1 ORDER BY number ASC")
-    fun getFavoritePokemonList(): PagingSource<Int, PokemonListEntity>
 
     @Query("DELETE FROM pokemon_list")
     suspend fun clearPokemonList()
@@ -36,6 +35,18 @@ interface PokemonDao {
     @Query("UPDATE pokemon_list SET isFavorite = :isFavorite WHERE pokemonName = :pokemonName")
     suspend fun setFavorite(pokemonName: String, isFavorite: Boolean)
 
+    // For Moves
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMoveList(moves: List<MoveEntity>)
+
+    @Query("SELECT * FROM moves ORDER BY name ASC")
+    fun getMoveList(): PagingSource<Int, MoveEntity>
+
+    @Query("DELETE FROM moves")
+    suspend fun clearMoveList()
+
+
+    // For Remote Keys
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllRemoteKeys(remoteKey: List<RemoteKeys>)
 
