@@ -1,7 +1,7 @@
 package com.jamie.pokedexhiltversion.data.remote.responses.move
 
 import com.google.gson.annotations.SerializedName
-import com.jamie.pokedexhiltversion.data.remote.responses.Type
+import com.jamie.pokedexhiltversion.data.remote.responses.TypeX
 
 data class MoveDetail(
     val id: Int,
@@ -11,7 +11,7 @@ data class MoveDetail(
     val pp: Int,
     @SerializedName("flavor_text_entries")
     val flavorTextEntries: List<FlavorTextEntry>,
-    val type: Type
+    val type: TypeX
 )
 
 data class FlavorTextEntry(

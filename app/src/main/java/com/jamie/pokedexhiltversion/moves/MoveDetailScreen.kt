@@ -62,19 +62,7 @@ fun MoveDetailScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            IconButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Default.ArrowBack,
-                    contentDescription = "Back",
-                    tint = Color.White
-                )
-            }
-
+            // Draw content first, so it's in the background
             when (val result = moveInfo) {
                 is Resource.Success -> {
                     MoveDetailContent(move = result.data!!)
@@ -92,6 +80,20 @@ fun MoveDetailScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
                 }
+            }
+
+            // Draw IconButton last, so it's on top and clickable
+            IconButton(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Default.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White
+                )
             }
         }
     }
@@ -128,7 +130,7 @@ fun MoveDetailContent(move: MoveDetail) {
                 .padding(horizontal = 24.dp, vertical = 8.dp)
         ) {
             Text(
-                text = move.type.type.name.uppercase(),
+                text = move.type.name.uppercase(),
                 color = Color.White,
                 fontWeight = FontWeight.Bold
             )

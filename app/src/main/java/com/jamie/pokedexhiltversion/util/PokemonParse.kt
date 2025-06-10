@@ -3,11 +3,12 @@ package com.jamie.pokedexhiltversion.util
 import androidx.compose.ui.graphics.Color
 import com.jamie.pokedexhiltversion.data.remote.responses.Stat
 import com.jamie.pokedexhiltversion.data.remote.responses.Type
+import com.jamie.pokedexhiltversion.data.remote.responses.TypeX
 import com.jamie.pokedexhiltversion.ui.theme.*
 import java.util.*
 
-fun parseTypeToColor(type: Type): Color {
-    return when(type.type.name.lowercase(Locale.ROOT)) {
+private fun parseTypeStringToColor(typeName: String): Color {
+    return when (typeName.lowercase(Locale.ROOT)) {
         "normal" -> TypeNormal
         "fire" -> TypeFire
         "water" -> TypeWater
@@ -28,6 +29,16 @@ fun parseTypeToColor(type: Type): Color {
         "fairy" -> TypeFairy
         else -> Color.Black
     }
+}
+
+// For Pokemon types (which are nested)
+fun parseTypeToColor(type: Type): Color {
+    return parseTypeStringToColor(type.type.name)
+}
+
+// Overloaded function for Move types (which are not nested)
+fun parseTypeToColor(type: TypeX): Color {
+    return parseTypeStringToColor(type.name)
 }
 
 fun parseStatToColor(stat: Stat): Color {
